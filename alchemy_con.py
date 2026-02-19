@@ -51,8 +51,10 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)
     transaction_type = Column(String(50), nullable=False)
     timestamp = Column(DateTime, nullable=False)
-    sender = Column(String(255), ForeignKey('users.name'), ForeignKey('users.id'), nullable=False)
-    receiver = Column(String(255), ForeignKey('users.name'), ForeignKey('users.id'), nullable=True)
+    sender_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    receiver_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    sender_rel = relationship('Person', foreign_keys=[sender_id])
+    receiver_rel = relationship('Person', foreign_keys=[receiver_id])
 
 class AuditLog(Base):
     __tablename__ = 'audit_logs'
@@ -62,7 +64,12 @@ class AuditLog(Base):
     timestamp = Column(DateTime, nullable=False)
     user = relationship('Person')
 
-Base.metadata.create_all(bind=engine)
+# Only create tables that don't already exist (avoid conflicts with Django-managed tables)
+from sqlalchemy import inspect as sa_inspect
+_inspector = sa_inspect(engine)
+_existing = set(_inspector.get_table_names())
+_our_tables = [t for t in Base.metadata.sorted_tables if t.name not in _existing]
+Base.metadata.create_all(bind=engine, tables=_our_tables)
 session = SessionLocal()
 session.commit()
     
